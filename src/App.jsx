@@ -73,31 +73,31 @@ function parseSeasonCard(text) {
 
   if (isUnranked) return { rank: null, username, points, isUnranked: true }
 
-  // Pass 2: rank — prefer a number alone on its own line (the rank badge).
-  // Search only after "Season Records" header to skip the status bar (battery %, time, signal).
+  // Pass 2: rank — search only AFTER "Season Records" header to skip status bar (battery, time)
   let rank = null
   const seasonIdx = textBefore.search(/season\s*records/i)
   const rankSearchRegion = seasonIdx !== -1
     ? textBefore.slice(seasonIdx)
-    : textBefore.split('\n').slice(1).join('\n') // fallback: skip first line (status bar)
+    : textBefore.split('\n').slice(1).join('\n')
+
+  // Method A: number alone on its own line (clean rank badge OCR)
   const standaloneMatch = rankSearchRegion.match(/^\s*([0-9][0-9,]*)\s*$/m)
   if (standaloneMatch) {
     const n = parseInt(standaloneMatch[1].replace(/,/g, ''), 10)
     if (n >= 1 && n <= 10000) rank = n
   }
 
-  // Fallback: last number in range 1–10,000 across all tokens
+  // Method B: number followed by 1–3 letter OCR artifact at end of line e.g. "570 H"
+  // Rejects patterns like "3 Kafius" where a full word (4+ chars) follows the number
   if (!rank) {
-    for (let i = tokens.length - 1; i >= 0; i--) {
-      const t = tokens[i]
-      if (/^[\d,]+$/.test(t)) {
-        const n = parseInt(t.replace(/,/g, ''), 10)
-        if (n >= 1 && n <= 10000) { rank = n; break }
-      }
+    const badgeMatch = rankSearchRegion.match(/([0-9][0-9,]*)\s+[A-Za-z]{1,3}\s*$/m)
+    if (badgeMatch) {
+      const n = parseInt(badgeMatch[1].replace(/,/g, ''), 10)
+      if (n >= 1 && n <= 10000) rank = n
     }
   }
 
-  // Fallback: # pattern (older screen formats)
+  // Method C: # pattern (older screen formats)
   if (!rank) {
     const hashMatch = text.match(/#\s*([0-9][0-9,]*)/)
     if (hashMatch) {
@@ -105,6 +105,8 @@ function parseSeasonCard(text) {
       if (n >= 1 && n <= 10000) rank = n
     }
   }
+
+  // No broad "last number" fallback — ambiguous numbers are more likely OCR artifacts
 
   return { rank, username, points }
 }

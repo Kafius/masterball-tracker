@@ -33,32 +33,31 @@ function parseSeasonCard(text) {
 
   if (isUnranked) return { rank: null, username, points, isUnranked: true }
 
-  // Pass 2: rank — prefer standalone number on its own line (rank badge),
-  // searching only AFTER "Season Records" header to skip the status bar (battery %, time)
+  // Pass 2: rank — search only AFTER "Season Records" header to skip status bar
   let rank = null
   const seasonIdx = textBefore.search(/season\s*records/i)
   const rankSearchRegion = seasonIdx !== -1
     ? textBefore.slice(seasonIdx)
     : textBefore.split('\n').slice(1).join('\n')
 
+  // Method A: number alone on its own line
   const standaloneMatch = rankSearchRegion.match(/^\s*([0-9][0-9,]*)\s*$/m)
   if (standaloneMatch) {
     const n = parseInt(standaloneMatch[1].replace(/,/g, ''), 10)
     if (n >= 1 && n <= 10000) rank = n
   }
 
-  // Fallback: last number in range across all tokens
+  // Method B: number + 1–3 letter OCR artifact at end of line e.g. "570 H"
+  // Rejects patterns like "3 Kafius" where a full word follows the number
   if (!rank) {
-    for (let i = tokens.length - 1; i >= 0; i--) {
-      const t = tokens[i]
-      if (/^[\d,]+$/.test(t)) {
-        const n = parseInt(t.replace(/,/g, ''), 10)
-        if (n >= 1 && n <= 10000) { rank = n; break }
-      }
+    const badgeMatch = rankSearchRegion.match(/([0-9][0-9,]*)\s+[A-Za-z]{1,3}\s*$/m)
+    if (badgeMatch) {
+      const n = parseInt(badgeMatch[1].replace(/,/g, ''), 10)
+      if (n >= 1 && n <= 10000) rank = n
     }
   }
 
-  // Fallback: # pattern
+  // Method C: # pattern (older screen formats)
   if (!rank) {
     const hashMatch = text.match(/#\s*([0-9][0-9,]*)/)
     if (hashMatch) {

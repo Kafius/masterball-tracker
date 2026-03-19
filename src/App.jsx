@@ -429,6 +429,7 @@ export default function App() {
   const [ocrPassed, setOcrPassed] = useState(false)
   const [ocrExtracted, setOcrExtracted] = useState({ points: null, rank: null, username: null })
   const [ocrDebug, setOcrDebug] = useState('')
+  const [ocrChecks, setOcrChecks] = useState({ username: null, season: null, rank: null, points: null })
   const [exifDate, setExifDate] = useState(null)
   const ocrAbortRef = useRef(false)
 
@@ -496,6 +497,7 @@ export default function App() {
 
       // Unranked: dash in rank badge position, explicit "Unranked" text, or points+username readable but no rank
       if (isUnranked || /unranked/i.test(text) || (!rank && points && username)) {
+        setOcrChecks({ username: !!username, season: foundSeason, rank: false, points: !!points })
         setOcrStatus('fail')
         setOcrMessage(`${username ? `"${username}" is` : 'This account is'} not in the top 10,000 this season — only ranked players can submit.`)
         setOcrPassed(false)
@@ -504,6 +506,7 @@ export default function App() {
 
       // All three values must be readable
       if (!points || !rank || !username) {
+        setOcrChecks({ username: !!username, season: foundSeason, rank: !!rank, points: !!points })
         const missing = [!points && 'points', !rank && 'rank', !username && 'username'].filter(Boolean)
         setOcrStatus('fail')
         setOcrMessage(`Couldn't read ${missing.join(', ')} from your screenshot. Make sure you're uploading the Season Records screen with your rank visible.`)
@@ -513,6 +516,7 @@ export default function App() {
 
       // Username must match the registered profile name
       if (username.toLowerCase() !== ptcgUsername.toLowerCase()) {
+        setOcrChecks({ username: false, season: foundSeason, rank: !!rank, points: !!points })
         setOcrStatus('fail')
         setOcrMessage(`Username mismatch: screenshot shows "${username}" but your profile is "${ptcgUsername}". Submit your own Season Records screenshot.`)
         setOcrPassed(false)
@@ -528,6 +532,7 @@ export default function App() {
       }
 
       setOcrExtracted({ points, rank, username })
+      setOcrChecks({ username: true, season: foundSeason, rank: true, points: true })
       setOcrStatus(foundSeason ? 'pass' : 'warn')
       setOcrMessage(
         foundSeason
@@ -565,6 +570,7 @@ export default function App() {
     setScreenshotPreview(null)
     setOcrStatus('idle'); setOcrMessage(''); setOcrPassed(false)
     setOcrExtracted({ points: null, rank: null, username: null })
+    setOcrChecks({ username: null, season: null, rank: null, points: null })
     setOcrDebug('')
     setExifDate(null)
   }
@@ -762,6 +768,30 @@ export default function App() {
                   )}
 
                   <OcrStatus status={ocrStatus} message={ocrMessage} />
+
+                  {ocrStatus !== 'idle' && ocrStatus !== 'scanning' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
+                      {[
+                        { key: 'username', label: 'Username', value: ocrExtracted.username },
+                        { key: 'season',   label: 'Season',   value: ocrChecks.season ? 'Confirmed' : null },
+                        { key: 'rank',     label: 'Rank',     value: ocrExtracted.rank ? `#${ocrExtracted.rank.toLocaleString()}` : null },
+                        { key: 'points',   label: 'Points',   value: ocrExtracted.points ? formatPoints(ocrExtracted.points) : null },
+                      ].map(({ key, label, value }) => {
+                        const state = ocrChecks[key]
+                        const color = state === null ? '#4a4070' : state ? '#34d399' : '#f87171'
+                        const icon  = state === null ? '○' : state ? '✓' : '✗'
+                        return (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid ${state === null ? 'rgba(108,99,255,0.1)' : state ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+                            <span style={{ fontSize: 14, fontWeight: 900, color, flexShrink: 0, width: 16, textAlign: 'center' }}>{icon}</span>
+                            <div>
+                              <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: '#6C63FF', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700 }}>{label}</div>
+                              <div style={{ fontSize: 12, color: state ? '#e8e0ff' : '#4a4070', fontWeight: 600 }}>{value ?? '—'}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
 
                   {ocrDebug && (
                     <pre style={{ fontSize: 10, color: '#7c6fa0', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 300, overflow: 'auto' }}>

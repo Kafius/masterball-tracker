@@ -72,10 +72,14 @@ function parseSeasonCard(text) {
 
   if (isUnranked) return { rank: null, username, points, isUnranked: true }
 
-  // Pass 2: rank — prefer a number alone on its own line (the rank badge),
-  // which avoids picking up timer numbers like "44" from "00 hr 44 min"
+  // Pass 2: rank — prefer a number alone on its own line (the rank badge).
+  // Search only after "Season Records" header to skip the status bar (battery %, time, signal).
   let rank = null
-  const standaloneMatch = textBefore.match(/^\s*([0-9][0-9,]*)\s*$/m)
+  const seasonIdx = textBefore.search(/season\s*records/i)
+  const rankSearchRegion = seasonIdx !== -1
+    ? textBefore.slice(seasonIdx)
+    : textBefore.split('\n').slice(1).join('\n') // fallback: skip first line (status bar)
+  const standaloneMatch = rankSearchRegion.match(/^\s*([0-9][0-9,]*)\s*$/m)
   if (standaloneMatch) {
     const n = parseInt(standaloneMatch[1].replace(/,/g, ''), 10)
     if (n >= 1 && n <= 10000) rank = n

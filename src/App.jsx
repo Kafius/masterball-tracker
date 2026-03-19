@@ -57,22 +57,38 @@ function parseSeasonCard(text) {
   if (!ptsMatch) return { rank: null, username: null, points: null }
 
   const points = parseInt(ptsMatch[1].replace(/,/g, ''), 10)
-  const tokens = text.slice(0, ptsMatch.index).split(/[\s\n\r]+/).filter(t => t.length >= 2)
+  const textBefore = text.slice(0, ptsMatch.index)
+  const tokens = textBefore.split(/[\s\n\r]+/).filter(t => t.length >= 1)
 
-  // Pass 1: username — last non-numeric, non-UI token before pts
+  // Unranked: rank badge shows "-" alone on its own line
+  const isUnranked = /^\s*[-–—]\s*$/m.test(textBefore)
+
+  // Pass 1: username — last non-numeric, non-UI, non-dash token before pts
   let username = null
   for (let i = tokens.length - 1; i >= 0; i--) {
     const t = tokens[i]
-    if (!/^[\d,%.]+$/.test(t) && !UI_SKIP.test(t)) { username = t; break }
+    if (!/^[\d,%.]+$/.test(t) && !UI_SKIP.test(t) && !/^[-–—]+$/.test(t)) { username = t; break }
   }
 
-  // Pass 2: rank — last number in range 1–10,000 before pts (independent of username position)
+  if (isUnranked) return { rank: null, username, points, isUnranked: true }
+
+  // Pass 2: rank — prefer a number alone on its own line (the rank badge),
+  // which avoids picking up timer numbers like "44" from "00 hr 44 min"
   let rank = null
-  for (let i = tokens.length - 1; i >= 0; i--) {
-    const t = tokens[i]
-    if (/^[\d,]+$/.test(t)) {
-      const n = parseInt(t.replace(/,/g, ''), 10)
-      if (n >= 1 && n <= 10000) { rank = n; break }
+  const standaloneMatch = textBefore.match(/^\s*([0-9][0-9,]*)\s*$/m)
+  if (standaloneMatch) {
+    const n = parseInt(standaloneMatch[1].replace(/,/g, ''), 10)
+    if (n >= 1 && n <= 10000) rank = n
+  }
+
+  // Fallback: last number in range 1–10,000 across all tokens
+  if (!rank) {
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const t = tokens[i]
+      if (/^[\d,]+$/.test(t)) {
+        const n = parseInt(t.replace(/,/g, ''), 10)
+        if (n >= 1 && n <= 10000) { rank = n; break }
+      }
     }
   }
 
@@ -443,20 +459,13 @@ export default function App() {
       await worker.terminate()
       if (ocrAbortRef.current) return
 
-      if (/unranked/i.test(text)) {
-        setOcrStatus('fail')
-        setOcrMessage('This screenshot shows "Unranked" — only players in the top 10,000 can submit. Open Season Records to find your rank number.')
-        setOcrPassed(false)
-        return
-      }
-
-      const { rank, username, points } = parseSeasonCard(text)
+      const { rank, username, points, isUnranked } = parseSeasonCard(text)
       const foundSeason = ocrContainsSeason(text)
 
-      // If points and username are readable but rank isn't, the account is almost certainly unranked
-      if (!rank && points && username) {
+      // Unranked: dash in rank badge position, explicit "Unranked" text, or points+username readable but no rank
+      if (isUnranked || /unranked/i.test(text) || (!rank && points && username)) {
         setOcrStatus('fail')
-        setOcrMessage(`No rank detected for ${username} — this account is likely not in the top 10,000. Only ranked players can submit.`)
+        setOcrMessage(`${username ? `"${username}" is` : 'This account is'} not in the top 10,000 this season — only ranked players can submit.`)
         setOcrPassed(false)
         return
       }

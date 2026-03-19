@@ -63,11 +63,12 @@ function parseSeasonCard(text) {
   // Unranked: rank badge shows "-" alone on its own line
   const isUnranked = /^\s*[-–—]\s*$/m.test(textBefore)
 
-  // Pass 1: username — last non-numeric, non-UI, non-dash token before pts
+  // Pass 1: username — last non-numeric, non-UI, non-dash token of 2+ chars before pts
+  // Requiring length >= 2 filters out single-char OCR artifacts (e.g. "H" from avatar borders)
   let username = null
   for (let i = tokens.length - 1; i >= 0; i--) {
     const t = tokens[i]
-    if (!/^[\d,%.]+$/.test(t) && !UI_SKIP.test(t) && !/^[-–—]+$/.test(t)) { username = t; break }
+    if (t.length >= 2 && !/^[\d,%.]+$/.test(t) && !UI_SKIP.test(t) && !/^[-–—]+$/.test(t)) { username = t; break }
   }
 
   if (isUnranked) return { rank: null, username, points, isUnranked: true }

@@ -125,6 +125,24 @@ function isOutlier(points, entries) {
   return std > 0 && Math.abs(points - mean) > 3 * std
 }
 
+// Crop image to top 45% before OCR — keeps player card, removes leaderboard numbers
+function cropImageForOcr(file) {
+  return new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const cropHeight = Math.floor(img.height * 0.45)
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = cropHeight
+      canvas.getContext('2d').drawImage(img, 0, 0, img.width, cropHeight, 0, 0, img.width, cropHeight)
+      URL.revokeObjectURL(url)
+      canvas.toBlob(resolve, 'image/png')
+    }
+    img.src = url
+  })
+}
+
 // Try to read EXIF DateTimeOriginal from a photo file (works for JPEG, not PNG)
 async function getExifDate(file) {
   try {
@@ -537,7 +555,7 @@ export default function App() {
     const exif = await getExifDate(f)
     if (exif) setExifDate(exif)
 
-    runOcr(f)
+    cropImageForOcr(f).then(cropped => runOcr(cropped || f))
   }
 
   function clearScreenshot() {

@@ -410,6 +410,7 @@ export default function App() {
   const [ocrMessage, setOcrMessage] = useState('')
   const [ocrPassed, setOcrPassed] = useState(false)
   const [ocrExtracted, setOcrExtracted] = useState({ points: null, rank: null, username: null })
+  const [ocrDebug, setOcrDebug] = useState('')
   const [exifDate, setExifDate] = useState(null)
   const ocrAbortRef = useRef(false)
 
@@ -471,6 +472,8 @@ export default function App() {
       console.log('=== END OCR TEXT ===')
 
       const { rank, username, points, isUnranked } = parseSeasonCard(text)
+      console.log('=== PARSED ===', { rank, username, points, isUnranked })
+      setOcrDebug(`RAW:\n${text.slice(0, 600)}\n\nPARSED: rank=${rank} username=${username} points=${points} isUnranked=${isUnranked}`)
       const foundSeason = ocrContainsSeason(text)
 
       // Unranked: dash in rank badge position, explicit "Unranked" text, or points+username readable but no rank
@@ -544,6 +547,7 @@ export default function App() {
     setScreenshotPreview(null)
     setOcrStatus('idle'); setOcrMessage(''); setOcrPassed(false)
     setOcrExtracted({ points: null, rank: null, username: null })
+    setOcrDebug('')
     setExifDate(null)
   }
 
@@ -740,6 +744,12 @@ export default function App() {
                   )}
 
                   <OcrStatus status={ocrStatus} message={ocrMessage} />
+
+                  {ocrDebug && (
+                    <pre style={{ fontSize: 10, color: '#7c6fa0', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(108,99,255,0.2)', borderRadius: 8, padding: '10px 12px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 300, overflow: 'auto' }}>
+                      {ocrDebug}
+                    </pre>
+                  )}
 
                   {ocrPassed && ocrExtracted.points && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>

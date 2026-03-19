@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(node test-screenshots/ocr-dump.mjs)",
+      "Bash(node test-screenshots/ocr-test.mjs)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:tcgdex.dev)",
+      "WebFetch(domain:api.tcgdex.net)",
+      "Bash(npx vite:*)"
+    ]
+  }
+}

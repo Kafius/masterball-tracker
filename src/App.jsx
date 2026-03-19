@@ -463,6 +463,10 @@ export default function App() {
       await worker.terminate()
       if (ocrAbortRef.current) return
 
+      console.log('=== RAW OCR TEXT ===')
+      console.log(text)
+      console.log('=== END OCR TEXT ===')
+
       const { rank, username, points, isUnranked } = parseSeasonCard(text)
       const foundSeason = ocrContainsSeason(text)
 
